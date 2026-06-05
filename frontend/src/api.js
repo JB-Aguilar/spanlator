@@ -10,6 +10,16 @@ function base() {
   return `http://localhost:${port}/api`
 }
 
+export async function uploadFilePath(filePath, gameName, sourceLang, targetLang) {
+  const res = await fetch(`${base()}/upload-path`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_path: filePath, game_name: gameName, source_lang: sourceLang, target_lang: targetLang }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error)
+  return res.json()
+}
+
 export async function uploadFile(file, gameName, sourceLang, targetLang) {
   const form = new FormData()
   form.append('file', file)
@@ -68,7 +78,7 @@ export async function exportProject(id) {
   a.href = url
   a.download = data.defaultName
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export async function getGlossary() {

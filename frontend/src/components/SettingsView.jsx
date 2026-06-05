@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { t, setLocale, getLocale } from '../i18n'
 import { getSettings, updateSettings } from '../api'
+import { cn } from '../lib/utils'
 
-export default function SettingsView() {
+export default function SettingsView({ dark, onToggleTheme }) {
   const [apiKey, setApiKey] = useState('')
   const [saved, setSaved] = useState(false)
   const locale = getLocale()
@@ -29,23 +30,27 @@ export default function SettingsView() {
         <div className="space-y-2">
           <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400">{t('settings.theme')}</label>
           <div className="flex gap-2">
-            {['light', 'dark'].map(mode => (
-              <button
-                key={mode}
-                onClick={() => {
-                  const isDark = mode === 'dark'
-                  document.documentElement.classList.toggle('dark', isDark)
-                  localStorage.setItem('sl_theme', mode)
-                }}
-                className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
-                  document.documentElement.classList.contains('dark') === (mode === 'dark')
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                }`}
-              >
-                {t(`settings.${mode}`)}
-              </button>
-            ))}
+            {['light', 'dark'].map(mode => {
+              const isDark = mode === 'dark'
+              return (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    const newDark = mode === 'dark'
+                    localStorage.setItem('sl_theme', mode)
+                    if (newDark !== dark) onToggleTheme()
+                  }}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-sm border transition-colors',
+                    isDark === dark
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                  )}
+                >
+                  {t(`settings.${mode}`)}
+                </button>
+              )
+            })}
           </div>
         </div>
 

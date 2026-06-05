@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, Download, RefreshCw, Search, CheckCircle2, Clock, Bookmark } from 'lucide-react'
-import { getProject, updateSegment, retranslateProject, exportProject } from '../api'
+import { ArrowLeft, Download, RefreshCw, Search, CheckCircle2, Clock, Bookmark, Eye } from 'lucide-react'
+import { getProject, updateSegment, retranslateProject, exportProject, getProjectPreview } from '../api'
 import { t } from '../i18n'
 import { cn } from '../lib/utils'
 
@@ -14,6 +14,7 @@ export default function EditorView({ projectId, onBack }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [loading, setLoading] = useState(true)
+  const [preview, setPreview] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -43,24 +44,35 @@ export default function EditorView({ projectId, onBack }) {
   }
 
   const handleSave = async (id) => {
-    await updateSegment(id, { target_text: editValue })
-    setEditingId(null)
-    load()
+    try {
+      await updateSegment(id, { target_text: editValue })
+      setEditingId(null)
+      load()
+    } catch {}
   }
 
-  const handleKeyDown = (e, id) => {
+  const handleKeyDown = async (e, id) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSave(id)
+      await handleSave(id)
     }
     if (e.key === 'Escape') {
       setEditingId(null)
     }
   }
 
+  const handlePreview = async () => {
+    try {
+      const data = await getProjectPreview(projectId)
+      setPreview(data)
+    } catch {}
+  }
+
   const handleRetranslate = async () => {
-    await retranslateProject(projectId)
-    load()
+    try {
+      await retranslateProject(projectId)
+      load()
+    } catch {}
   }
 
   const statusIcon = (seg) => {
@@ -114,6 +126,9 @@ export default function EditorView({ projectId, onBack }) {
         </button>
         <button onClick={() => exportProject(projectId)} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-400" title={t('editor.export')}>
           <Download size={16} />
+        </button>
+        <button onClick={handlePreview} className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-zinc-400" title="Preview">
+          <Eye size={16} />
         </button>
       </header>
 
@@ -191,6 +206,27 @@ export default function EditorView({ projectId, onBack }) {
           </div>
         )}
       </div>
+
+      {preview && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setPreview(null)}>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+              <h2 className="font-semibold">Preview</h2>
+              <button onClick={() => setPreview(null)} className="px-3 py-1 text-sm text-zinc-400 hover:text-zinc-600">Close</button>
+            </div>
+            <div className="flex-1 grid grid-cols-2 overflow-hidden">
+              <div className="overflow-y-auto p-4 border-r border-zinc-200 dark:border-zinc-800">
+                <p className="text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wider">Original ({project.source_lang})</p>
+                <pre className="text-xs leading-relaxed whitespace-pre-wrap font-mono text-zinc-700 dark:text-zinc-300">{preview.original}</pre>
+              </div>
+              <div className="overflow-y-auto p-4">
+                <p className="text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wider">Translated ({project.target_lang})</p>
+                <pre className="text-xs leading-relaxed whitespace-pre-wrap font-mono text-zinc-700 dark:text-zinc-300">{preview.translated}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

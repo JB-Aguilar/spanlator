@@ -48,7 +48,7 @@ export default function App() {
         <EditorView projectId={projectId} onBack={() => setView('upload')} />
       )}
       {view === 'glossary' && <GlossaryView />}
-      {view === 'settings' && <SettingsView />}
+      {view === 'settings' && <SettingsView dark={dark} onToggleTheme={toggleTheme} />}
     </>
   )
 }

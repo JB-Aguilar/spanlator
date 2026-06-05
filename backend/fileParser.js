@@ -23,35 +23,73 @@ function walkJSON(obj, prefix, segments) {
 function parseXML(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8')
   const segments = []
-  const attrNames = ['text', 'name', 'title', 'description', 'label', 'caption', 'tooltip', 'value', 'display', 'subtitle', 'hint']
-  const skipAttrs = new Set(['id', 'ID', 'Id', 'guid', 'GUID', 'index', 'type', 'class', 'style', 'path', 'icon', 'sprite'])
+  const seen = new Set()
 
-  const textMatch = content.matchAll(/<([^>\s]+)[^>]*>([^<]+)<\/\1>/g)
-  for (const m of textMatch) {
-    const tag = m[1].toLowerCase()
-    if (['script', 'style', 'code', 'pre'].includes(tag)) continue
-    const text = m[2].trim()
-    if (text && text.length > 1 && /[a-zA-Z]/.test(text)) {
-      segments.push({ key: `${tag}.text`, source_text: text, context: '' })
+  const attrNames = ['text', 'title', 'description', 'label', 'caption', 'tooltip', 'value', 'display', 'subtitle', 'hint']
+  const skipAttrs = new Set(['id', 'ID', 'Id', 'guid', 'GUID', 'index', 'type', 'class', 'style', 'path', 'icon', 'sprite', 'name', 'key', 'ref', 'xml:space'])
+
+  const TAG_REGEX = /<(\/?)([^\s>/]+)((?:\s+[^\s>/]+=(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g
+
+  let match
+  while ((match = TAG_REGEX.exec(content)) !== null) {
+    const isClosing = match[1] === '/'
+    const tagName = match[2]
+    const attrsStr = match[3]
+    const isSelfClosing = match[4] === '/'
+
+    if (['script', 'style', 'code', 'pre'].includes(tagName.toLowerCase())) continue
+    if (isClosing) continue
+
+    if (isSelfClosing) {
+      extractAttrs(attrsStr, tagName, segments, seen, attrNames, skipAttrs)
+      continue
+    }
+
+    extractAttrs(attrsStr, tagName, segments, seen, attrNames, skipAttrs)
+
+    const tagStart = match.index
+    const openTagEnd = match.index + match[0].length
+    const closingTag = `</${tagName}>`
+
+    const rest = content.slice(openTagEnd)
+    const closeIdx = rest.indexOf(closingTag)
+    if (closeIdx === -1) continue
+
+    let inner = rest.slice(0, closeIdx).trim()
+    const cdataMatch = inner.match(/^<!\[CDATA\[(.+?)\]\]>\s*$/)
+    if (cdataMatch) inner = cdataMatch[1].trim()
+    if (inner && inner.length > 1 && /[a-zA-Z]/.test(inner) && !inner.includes('<')) {
+      const uniq = `${tagName}.text:${inner}`
+      if (!seen.has(uniq)) {
+        seen.add(uniq)
+        segments.push({ key: `${tagName}.text`, source_text: inner, context: '' })
+      }
     }
   }
 
-  const attrMatch = content.matchAll(/<[^>]+\s+([^=]+)="([^"]+)"[^>]*>/g)
-  for (const m of attrMatch) {
-    const attrName = m[1].trim()
-    const attrValue = m[2].trim()
+  return segments
+}
+
+function extractAttrs(attrsStr, tagName, segments, seen, attrNames, skipAttrs) {
+  const ATTR_REGEX = /([^\s=/]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
+  let m
+  while ((m = ATTR_REGEX.exec(attrsStr)) !== null) {
+    const attrName = m[1]
+    const attrValue = (m[2] !== undefined ? m[2] : m[3]).trim()
     if (skipAttrs.has(attrName)) continue
     if (attrName.startsWith('xmlns')) continue
     if (/^[-\d.]+$/.test(attrValue)) continue
     if (/^\w+=\w+/.test(attrValue) && /[-0-9]/.test(attrValue)) continue
     if (attrNames.includes(attrName) || !/^[a-z]/i.test(attrName)) {
       if (attrValue && attrValue.length > 1 && /[a-zA-Z]/.test(attrValue)) {
-        segments.push({ key: attrName, source_text: attrValue, context: '' })
+        const uniq = `${tagName}.@${attrName}:${attrValue}`
+        if (!seen.has(uniq)) {
+          seen.add(uniq)
+          segments.push({ key: attrName, source_text: attrValue, context: '' })
+        }
       }
     }
   }
-
-  return segments
 }
 
 function parseTXT(filePath) {
@@ -83,12 +121,30 @@ function parseCSV(filePath) {
   const lines = content.split(/\r?\n/).filter(l => l.trim())
   const segments = []
   for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(',')
-    if (parts[0]) {
-      segments.push({ key: `row_${i}`, source_text: parts[0].trim().replace(/^"|"$/g, ''), context: parts[1] ? parts[1].trim().replace(/^"|"$/g, '') : '' })
+    const fields = splitCSVLine(lines[i])
+    if (fields[0]) {
+      segments.push({ key: `row_${i}`, source_text: fields[0], context: fields[1] || '' })
     }
   }
   return segments
+}
+
+function splitCSVLine(line) {
+  const fields = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') {
+      inQuotes = !inQuotes
+    } else if (line[i] === ',' && !inQuotes) {
+      fields.push(current.trim().replace(/^"|"$/g, ''))
+      current = ''
+    } else {
+      current += line[i]
+    }
+  }
+  fields.push(current.trim().replace(/^"|"$/g, ''))
+  return fields
 }
 
 function parseTSV(filePath) {

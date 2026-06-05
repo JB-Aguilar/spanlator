@@ -67,15 +67,15 @@ function buildPO(segments, originalContent) {
   for (const seg of segments) {
     if (seg.source_text && seg.target_text) map[seg.source_text] = seg.target_text
   }
-  let result = originalContent
-  for (const [src, tgt] of Object.entries(map)) {
-    const escaped = src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    result = result.replace(new RegExp(`(msgstr\\s+")[^"]*(")`), (match, p1, p2) => {
-      if (result.includes(`msgid "${escaped}"`)) return `${p1}${tgt}${p2}`
-      return match
-    })
-  }
-  return result
+  const blocks = originalContent.split(/\n\n/)
+  const result = blocks.map(block => {
+    const idMatch = block.match(/msgid\s+"((?:[^"\\]|\\.)*)"/)
+    if (idMatch && map[idMatch[1]] !== undefined) {
+      return block.replace(/(msgstr\s+")[^"]*(")/, `$1${map[idMatch[1]]}$2`)
+    }
+    return block
+  })
+  return result.join('\n\n')
 }
 
 function buildOutput(segments, fileType, originalContent) {

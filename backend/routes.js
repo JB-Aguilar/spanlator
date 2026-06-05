@@ -25,6 +25,68 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
+router.post('/upload-path', async (req, res) => {
+  try {
+    const { file_path, game_name, source_lang, target_lang } = req.body
+    if (!file_path || !fs.existsSync(file_path)) return res.status(400).json({ error: 'Invalid file path' })
+
+    const db = getDb()
+    const gameName = game_name || path.basename(file_path, path.extname(file_path))
+    const sourceLang = source_lang || 'en'
+    const targetLang = target_lang || 'es'
+    const ext = path.extname(file_path)
+
+    let game = db.prepare('SELECT id FROM games WHERE name = ?').get(gameName)
+    if (!game) {
+      const gameId = uuidv4()
+      db.prepare('INSERT INTO games (id, name) VALUES (?, ?)').run(gameId, gameName)
+      game = { id: gameId }
+    }
+
+    const segments = parseFile(file_path, ext)
+    if (segments.length === 0) return res.status(400).json({ error: 'No translatable text found' })
+
+    const originalContent = fs.readFileSync(file_path, 'utf-8')
+    const projectId = uuidv4()
+
+    db.prepare(`
+      INSERT INTO projects (id, game_id, file_name, file_type, source_lang, target_lang, status, original_content)
+      VALUES (?, ?, ?, ?, ?, ?, 'processing', ?)
+    `).run(projectId, game.id, path.basename(file_path), ext, sourceLang, targetLang, originalContent)
+
+    const insertSeg = db.prepare(`INSERT INTO segments (id, project_id, key, source_text, context) VALUES (?, ?, ?, ?, ?)`)
+    db.transaction((segs) => {
+      for (const seg of segs) insertSeg.run(uuidv4(), projectId, seg.key, seg.source_text, seg.context || '')
+    })(segments)
+
+    const insertedSegs = db.prepare('SELECT id, key, source_text, context FROM segments WHERE project_id = ?').all(projectId)
+
+    res.json({
+      project_id: projectId,
+      total_segments: segments.length,
+      translated: 0,
+      pending: segments.length,
+      status: 'processing',
+    })
+
+    setImmediate(async () => {
+      try {
+        const translations = await translateBatch(insertedSegs, sourceLang, targetLang, game.id)
+        const updateSeg = db.prepare('UPDATE segments SET target_text = ?, translated_by = ?, confidence = ? WHERE id = ?')
+        db.transaction((trans) => { for (const t of trans) updateSeg.run(t.target_text, t.translated_by, t.confidence || 0, t.id) })(translations)
+        saveToTranslationMemory(translations, game.id, sourceLang, targetLang)
+        db.prepare('UPDATE projects SET status = ? WHERE id = ?').run('ready', projectId)
+      } catch (err) {
+        console.error('Background translation error:', err)
+        db.prepare('UPDATE projects SET status = ? WHERE id = ?').run('error', projectId)
+      }
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' })

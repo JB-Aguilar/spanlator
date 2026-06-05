@@ -15,6 +15,12 @@ const locales = {
     'upload.translating': 'Traduciendo...',
     'upload.done': 'Traducción completada',
     'upload.error': 'Error al procesar el archivo',
+    'upload.native_open': 'Abrir con explorador de archivos',
+    'upload.or': 'o',
+    'upload.click_to_open': 'Haz clic para abrir el proyecto',
+    'upload.recent': 'Proyectos recientes',
+    'upload.timeout': 'La traducción está tomando demasiado tiempo. Intenta de nuevo.',
+    'upload.result': '{total} segmentos · {translated} traducidos · {pending} pendientes',
     'lang.en': 'Inglés',
     'lang.es': 'Español',
     'editor.total': 'Total',
@@ -50,7 +56,7 @@ const locales = {
     'settings.light': 'Claro',
     'settings.system': 'Sistema',
     'settings.lang': 'Idioma de la app',
-    'settings.about': 'SpanLator v1.0.0 — Traductor de archivos de juego con Google Translate y glosario personalizado.',
+    'settings.about': 'SpanLator v0.0.1 — Traductor de archivos de juego con Google Translate y glosario personalizado.',
     'settings.api_key': 'API Key (opcional)',
     'settings.api_key_hint': 'Si quieres usar OpenAI en lugar de Google Translate.',
   },
@@ -70,6 +76,12 @@ const locales = {
     'upload.translating': 'Translating...',
     'upload.done': 'Translation complete',
     'upload.error': 'Error processing file',
+    'upload.native_open': 'Open with system file picker',
+    'upload.or': 'or',
+    'upload.click_to_open': 'Click to open the project',
+    'upload.recent': 'Recent projects',
+    'upload.timeout': 'Translation is taking too long. Please try again.',
+    'upload.result': '{total} segments · {translated} translated · {pending} pending',
     'lang.en': 'English',
     'lang.es': 'Spanish',
     'editor.total': 'Total',
@@ -105,7 +117,7 @@ const locales = {
     'settings.light': 'Light',
     'settings.system': 'System',
     'settings.lang': 'App language',
-    'settings.about': 'SpanLator v1.0.0 — Game file translator with Google Translate and custom glossary.',
+    'settings.about': 'SpanLator v0.0.1 — Game file translator with Google Translate and custom glossary.',
     'settings.api_key': 'API Key (optional)',
     'settings.api_key_hint': 'Use OpenAI instead of Google Translate.',
   },
@@ -113,8 +125,14 @@ const locales = {
 
 let locale = localStorage.getItem('sl_lang') || 'es'
 
-export function t(key) {
-  return locales[locale]?.[key] || locales['es']?.[key] || key
+export function t(key, params) {
+  let str = locales[locale]?.[key] || locales['es']?.[key] || key
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(`{${k}}`, v)
+    }
+  }
+  return str
 }
 
 export function setLocale(l) {

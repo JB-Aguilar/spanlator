@@ -1,12 +1,12 @@
 {
   "name": "spanlator",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Game file translator — Google Translate + glossary",
   "main": "electron/main.js",
   "scripts": {
     "dev:frontend": "cd frontend && npx vite --port 5173",
     "dev:electron": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 npx electron .",
-    "dev": "concurrently \"npm run dev:frontend\" \"sleep 3 && npm run dev:electron\"",
+    "dev": "concurrently \"npm run dev:frontend\" \"node -e setTimeout(() => process.exit(0), 3000) && npm run dev:electron\"",
     "build:frontend": "cd frontend && npx vite build",
     "dist": "npm run build:frontend && npx electron-builder --win --x64",
     "dist:portable": "npm run build:frontend && npx electron-builder --win portable",
@@ -26,6 +26,7 @@
     ],
     "win": {
       "icon": "resources/icon.png",
+      "certificateSubjectName": null,
       "target": [
         {
           "target": "nsis",
@@ -39,7 +40,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "SpanLator",
-      "uninstallDisplayName": "SpanLator"
+      "uninstallDisplayName": "SpanLator 0.0.1"
     }
   },
   "devDependencies": {

@@ -63,32 +63,38 @@ async function translateSegment(segment, sourceLang, targetLang, gameId) {
 }
 
 async function translateBatch(segments, sourceLang, targetLang, gameId) {
+  const db = getDb()
   const results = []
 
+  const sourceTexts = segments.map(s => s.source_text)
+  const placeholders = sourceTexts.map(() => '?').join(',')
+
+  const tmGameMap = {}
+  const tmGameRows = db.prepare(`
+    SELECT source_text, target_text FROM translation_memory
+    WHERE source_lang = ? AND target_lang = ? AND game_id = ? AND source_text IN (${placeholders})
+  `).all(sourceLang, targetLang, gameId, ...sourceTexts)
+  for (const r of tmGameRows) tmGameMap[r.source_text] = r.target_text
+
+  const tmGlobalMap = {}
+  const remaining = sourceTexts.filter(t => !tmGameMap[t])
+  if (remaining.length > 0) {
+    const remainingPlaceholders = remaining.map(() => '?').join(',')
+    const tmGlobalRows = db.prepare(`
+      SELECT source_text, target_text FROM translation_memory
+      WHERE source_lang = ? AND target_lang = ? AND source_text IN (${remainingPlaceholders})
+    `).all(sourceLang, targetLang, ...remaining)
+    for (const r of tmGlobalRows) tmGlobalMap[r.source_text] = r.target_text
+  }
+
   for (const seg of segments) {
-    const tm = getDb().prepare(`
-      SELECT target_text FROM translation_memory
-      WHERE source_lang = ? AND target_lang = ? AND source_text = ? AND game_id = ?
-      LIMIT 1
-    `).get(sourceLang, targetLang, seg.source_text, gameId)
-
-    if (tm) {
-      results.push({ id: seg.id, source_text: seg.source_text, target_text: tm.target_text, translated_by: 'tm', confidence: 1.0 })
-      continue
+    if (tmGameMap[seg.source_text]) {
+      results.push({ id: seg.id, source_text: seg.source_text, target_text: tmGameMap[seg.source_text], translated_by: 'tm', confidence: 1.0 })
+    } else if (tmGlobalMap[seg.source_text]) {
+      results.push({ id: seg.id, source_text: seg.source_text, target_text: tmGlobalMap[seg.source_text], translated_by: 'tm', confidence: 1.0 })
+    } else {
+      results.push(null)
     }
-
-    const tmGlobal = getDb().prepare(`
-      SELECT target_text FROM translation_memory
-      WHERE source_lang = ? AND target_lang = ? AND source_text = ?
-      LIMIT 1
-    `).get(sourceLang, targetLang, seg.source_text)
-
-    if (tmGlobal) {
-      results.push({ id: seg.id, source_text: seg.source_text, target_text: tmGlobal.target_text, translated_by: 'tm', confidence: 1.0 })
-      continue
-    }
-
-    results.push(null)
   }
 
   const toTranslate = []
