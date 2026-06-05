@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Upload, File, CheckCircle, AlertCircle, Loader2, FolderOpen, History } from 'lucide-react'
 import { uploadFile, uploadFilePath, getProject, getProjects } from '../api'
 import { t } from '../i18n'
@@ -14,6 +14,7 @@ export default function UploadView({ onProjectCreated }) {
   const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [recent, setRecent] = useState([])
+  const [progress, setProgress] = useState(0)
   const inputRef = useRef(null)
   const pollRef = useRef(null)
 
@@ -32,17 +33,8 @@ export default function UploadView({ onProjectCreated }) {
 
   const startPoll = (projectId) => {
     setState('translating')
-    let retries = 0
-    const MAX_RETRIES = 120
+    setProgress(0)
     pollRef.current = setInterval(async () => {
-      retries++
-      if (retries >= MAX_RETRIES) {
-        clearInterval(pollRef.current)
-        pollRef.current = null
-        setState('error')
-        setError(t('upload.timeout'))
-        return
-      }
       try {
         const proj = await getProject(projectId)
         if (proj.status === 'ready' || proj.status === 'error') {
@@ -51,10 +43,16 @@ export default function UploadView({ onProjectCreated }) {
           if (proj.status === 'ready') {
             setState('done')
             setResult(proj)
+            setProgress(100)
           } else {
             setState('error')
             setError(t('upload.error'))
           }
+          return
+        }
+        if (proj.total_segments > 0) {
+          const translated = proj.segments.filter(s => s.target_text && s.target_text.trim()).length
+          setProgress(Math.round((translated / proj.total_segments) * 100))
         }
       } catch {}
     }, 1500)
@@ -188,16 +186,27 @@ export default function UploadView({ onProjectCreated }) {
             </div>
           </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={!file || state === 'uploading' || state === 'translating'}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            {(state === 'uploading' || state === 'translating') && <Loader2 size={18} className="animate-spin" />}
-            {state === 'uploading' && t('upload.uploading')}
-            {state === 'translating' && t('upload.translating')}
-            {state !== 'uploading' && state !== 'translating' && t('upload.start')}
-          </button>
+          {state === 'translating' ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <Loader2 size={16} className="animate-spin" />
+                {t('upload.translating')} — {progress}%
+              </div>
+              <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-600 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!file || state === 'uploading'}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              {state === 'uploading' && <Loader2 size={18} className="animate-spin" />}
+              {state === 'uploading' && t('upload.uploading')}
+              {state !== 'uploading' && t('upload.start')}
+            </button>
+          )}
 
           {state === 'done' && result && (
             <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-xl flex items-start gap-3 cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"

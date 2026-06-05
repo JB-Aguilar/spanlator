@@ -120,10 +120,10 @@ function parseCSV(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8')
   const lines = content.split(/\r?\n/).filter(l => l.trim())
   const segments = []
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const fields = splitCSVLine(lines[i])
-    if (fields[0]) {
-      segments.push({ key: `row_${i}`, source_text: fields[0], context: fields[1] || '' })
+    if (fields[0] && fields[1]) {
+      segments.push({ key: fields[0], source_text: fields[1], context: fields.slice(2).join(', ') })
     }
   }
   return segments

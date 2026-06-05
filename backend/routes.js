@@ -172,7 +172,10 @@ router.get('/projects/:id', (req, res) => {
     ORDER BY created_at ASC
   `).all(req.params.id)
 
-  res.json({ ...project, segments })
+  const total_segments = segments.length
+  const translated = segments.filter(s => s.target_text && s.target_text.trim()).length
+  const pending = total_segments - translated
+  res.json({ ...project, segments, total_segments, translated, pending })
 })
 
 router.get('/projects', (req, res) => {
