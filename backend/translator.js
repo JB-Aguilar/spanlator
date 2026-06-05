@@ -141,15 +141,20 @@ async function translateBatch(segments, sourceLang, targetLang, gameId) {
 
 function saveToTranslationMemory(translations, gameId, sourceLang, targetLang) {
   const db = getDb()
+  const update = db.prepare(`
+    UPDATE translation_memory SET target_text = ? WHERE source_lang = ? AND target_lang = ? AND source_text = ?
+  `)
   const insert = db.prepare(`
-    INSERT INTO translation_memory (id, game_id, source_lang, target_lang, source_text, target_text, similarity)
+    INSERT OR IGNORE INTO translation_memory (id, game_id, source_lang, target_lang, source_text, target_text, similarity)
     VALUES (?, ?, ?, ?, ?, ?, 1.0)
-    ON CONFLICT(source_lang, target_lang, source_text) DO UPDATE SET target_text = excluded.target_text
   `)
   const tx = db.transaction((items) => {
     for (const item of items) {
       if (item.target_text && item.target_text.trim()) {
-        insert.run(uuidv4(), gameId, sourceLang, targetLang, item.source_text, item.target_text)
+        const result = update.run(item.target_text, sourceLang, targetLang, item.source_text)
+        if (result.changes === 0) {
+          insert.run(uuidv4(), gameId, sourceLang, targetLang, item.source_text, item.target_text)
+        }
       }
     }
   })

@@ -15,6 +15,7 @@
   "build": {
     "appId": "com.spanlator.app",
     "productName": "SpanLator",
+    "artifactName": "SpanLator.${ext}",
     "directories": {
       "output": "dist"
     },
