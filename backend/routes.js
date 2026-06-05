@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid')
 const { getDb } = require('./database')
 const { parseFile } = require('./fileParser')
 const { buildOutput } = require('./outputBuilder')
-const { translateBatch, saveToTranslationMemory } = require('./translator')
+const { translateBatch, translateWithGoogle, applyGlossary, saveToTranslationMemory } = require('./translator')
 
 const router = express.Router()
 let uploadDir = null
@@ -205,6 +205,59 @@ router.put('/segments/:id', (req, res) => {
   }
 
   res.json(updated)
+})
+
+router.get('/segments/:id/suggestions', async (req, res) => {
+  try {
+    const db = getDb()
+    const seg = db.prepare('SELECT * FROM segments WHERE id = ?').get(req.params.id)
+    if (!seg) return res.status(404).json({ error: 'Not found' })
+
+    const project = db.prepare('SELECT game_id, source_lang, target_lang FROM projects WHERE id = ?').get(seg.project_id)
+    if (!project) return res.status(404).json({ error: 'Project not found' })
+
+    const suggestions = []
+
+    const tmGame = db.prepare(`
+      SELECT target_text FROM translation_memory
+      WHERE source_lang = ? AND target_lang = ? AND source_text = ? AND game_id = ?
+      LIMIT 1
+    `).get(project.source_lang, project.target_lang, seg.source_text, project.game_id)
+
+    if (tmGame) {
+      suggestions.push({ source: 'tm_game', label: 'Translation Memory (this game)', text: tmGame.target_text })
+    }
+
+    const tmGlobal = db.prepare(`
+      SELECT target_text FROM translation_memory
+      WHERE source_lang = ? AND target_lang = ? AND source_text = ? AND game_id != ?
+      LIMIT 1
+    `).get(project.source_lang, project.target_lang, seg.source_text, project.game_id)
+
+    if (tmGlobal) {
+      suggestions.push({ source: 'tm_global', label: 'Translation Memory (other games)', text: tmGlobal.target_text })
+    }
+
+    const glossaryTerms = db.prepare(`
+      SELECT source, target FROM glossary
+      WHERE ? LIKE '%' || source || '%'
+    `).all(seg.source_text)
+
+    for (const term of glossaryTerms) {
+      suggestions.push({ source: 'glossary', label: `Glossary: "${term.source}"`, text: term.target })
+    }
+
+    const googleText = await translateWithGoogle(seg.source_text, project.source_lang, project.target_lang)
+    if (googleText) {
+      const glossed = applyGlossary(googleText, `${project.source_lang}-${project.target_lang}`)
+      suggestions.push({ source: 'google', label: 'Google Translate', text: glossed || googleText })
+    }
+
+    res.json({ suggestions })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: err.message })
+  }
 })
 
 router.post('/projects/:id/retranslate', async (req, res) => {

@@ -1,6 +1,6 @@
 {
   "name": "spanlator",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Game file translator — Google Translate + glossary",
   "main": "electron/main.js",
   "scripts": {
@@ -40,7 +40,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "SpanLator",
-      "uninstallDisplayName": "SpanLator 0.0.1"
+      "uninstallDisplayName": "SpanLator 0.0.2"
     }
   },
   "devDependencies": {

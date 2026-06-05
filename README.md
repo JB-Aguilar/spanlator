@@ -88,6 +88,20 @@ spanlator/
 └── resources/       App icon
 ```
 
+## Glossary Import/Export Format
+
+The glossary can be imported/exported as a JSON file with the following structure:
+
+```json
+[
+  { "source": "Health Potion", "target": "Poción de Salud" },
+  { "source": "Mana",         "target": "Maná" },
+  { "source": "Quest",        "target": "Misión" }
+]
+```
+
+An array of objects, each with `source` (term in the original language) and `target` (forced translation). Terms are applied after Google Translate using word-boundary matching.
+
 ## Technology
 
 - **Backend**: Node.js, Express 5, better-sqlite3, google-translate-api-x

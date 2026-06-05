@@ -155,4 +155,4 @@ function saveToTranslationMemory(translations, gameId, sourceLang, targetLang) {
   tx(translations)
 }
 
-module.exports = { translateBatch, translateSegment, saveToTranslationMemory }
+module.exports = { translateBatch, translateSegment, translateWithGoogle, applyGlossary, saveToTranslationMemory }

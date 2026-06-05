@@ -114,3 +114,9 @@ export async function getProjectPreview(id) {
   const res = await fetch(`${base()}/projects/${id}/preview`)
   return res.json()
 }
+
+export async function getSegmentSuggestions(id) {
+  const res = await fetch(`${base()}/segments/${id}/suggestions`)
+  if (!res.ok) return { suggestions: [] }
+  return res.json()
+}
