@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Upload, Download } from 'lucide-react'
 import { getGlossary, saveGlossary } from '../api'
 import { t } from '../i18n'
@@ -9,12 +9,24 @@ export default function GlossaryView() {
   const [saving, setSaving] = useState(false)
   const [newSource, setNewSource] = useState('')
   const [newTarget, setNewTarget] = useState('')
+  const [saved, setSaved] = useState(false)
+  const savedTimer = useRef(null)
+
+  useEffect(() => {
+    return () => { if (savedTimer.current) clearTimeout(savedTimer.current) }
+  }, [])
 
   useEffect(() => {
     getGlossary().then(data => {
       setTerms(data.terms || [])
     }).catch(console.error).finally(() => setLoading(false))
   }, [])
+
+  const showSaved = () => {
+    setSaved(true)
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    savedTimer.current = setTimeout(() => setSaved(false), 2500)
+  }
 
   const addTerm = () => {
     if (!newSource.trim() || !newTarget.trim()) return
@@ -35,6 +47,9 @@ export default function GlossaryView() {
     setSaving(true)
     try {
       await saveGlossary(terms.map(({ source, target }) => ({ source, target })))
+      const data = await getGlossary()
+      setTerms(data.terms || [])
+      showSaved()
     } catch {} finally {
       setSaving(false)
     }
@@ -88,6 +103,13 @@ export default function GlossaryView() {
           <h1 className="text-2xl font-semibold tracking-tight">{t('glossary.title')}</h1>
           <p className="text-sm text-zinc-400 mt-1">{t('glossary.description')}</p>
         </div>
+
+        {saved && (
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-sm px-4 py-3 rounded-xl flex items-center gap-2 animate-fade-in">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            {t('glossary.saved')}
+          </div>
+        )}
 
         <div className="flex gap-2">
           <input
