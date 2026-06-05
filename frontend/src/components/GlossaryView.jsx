@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Upload, Download } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { getGlossary, saveGlossary } from '../api'
 import { t } from '../i18n'
 
@@ -53,35 +53,6 @@ export default function GlossaryView() {
     } catch {} finally {
       setSaving(false)
     }
-  }
-
-  const handleImport = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.json'
-    input.onchange = async (e) => {
-      try {
-        const text = await e.target.files[0].text()
-        const data = JSON.parse(text)
-        if (Array.isArray(data)) {
-          setTerms(data.map((item, i) => ({ id: Date.now() + i.toString(), source: item.source || '', target: item.target || '' })))
-        }
-      } catch {}
-    }
-    input.click()
-  }
-
-  const handleExport = () => {
-    const data = JSON.stringify(terms.map(({ source, target }) => ({ source, target })), null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'glossary.json'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   const handleKeyDown = (e) => {
@@ -161,12 +132,6 @@ export default function GlossaryView() {
         <div className="flex gap-2 sticky bottom-0 bg-zinc-50 dark:bg-zinc-950 py-3 -mx-6 px-6 border-t border-zinc-200 dark:border-zinc-800">
           <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 text-white rounded-lg text-sm font-medium transition-colors">
             {saving ? '...' : t('glossary.save')}
-          </button>
-          <button onClick={handleImport} className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors flex items-center gap-2">
-            <Upload size={14} /> {t('glossary.import')}
-          </button>
-          <button onClick={handleExport} className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors flex items-center gap-2">
-            <Download size={14} /> {t('glossary.export')}
           </button>
         </div>
       </div>

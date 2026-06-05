@@ -142,8 +142,9 @@ async function translateBatch(segments, sourceLang, targetLang, gameId) {
 function saveToTranslationMemory(translations, gameId, sourceLang, targetLang) {
   const db = getDb()
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO translation_memory (id, game_id, source_lang, target_lang, source_text, target_text, similarity)
+    INSERT INTO translation_memory (id, game_id, source_lang, target_lang, source_text, target_text, similarity)
     VALUES (?, ?, ?, ?, ?, ?, 1.0)
+    ON CONFLICT(source_lang, target_lang, source_text) DO UPDATE SET target_text = excluded.target_text
   `)
   const tx = db.transaction((items) => {
     for (const item of items) {
