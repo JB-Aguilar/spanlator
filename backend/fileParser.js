@@ -118,9 +118,21 @@ function parsePO(filePath) {
 
 function parseCSV(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8')
-  const lines = content.split(/\r?\n/).filter(l => l.trim())
+  const rawLines = content.split(/\r?\n/)
+  const lines = []
+  let buffer = ''
+  for (const rawLine of rawLines) {
+    buffer += (buffer ? '\n' : '') + rawLine
+    const quoteCount = (buffer.match(/"/g) || []).length
+    if (quoteCount % 2 === 0) {
+      if (buffer.trim()) lines.push(buffer)
+      buffer = ''
+    }
+  }
+  if (buffer.trim()) lines.push(buffer)
+
   const segments = []
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 1; i < lines.length; i++) {
     const fields = splitCSVLine(lines[i])
     if (fields[0] && fields[1]) {
       segments.push({ key: fields[0], source_text: fields[1], context: fields.slice(2).join(', ') })
