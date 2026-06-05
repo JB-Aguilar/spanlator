@@ -63,8 +63,10 @@ export default function GlossaryView() {
     const a = document.createElement('a')
     a.href = url
     a.download = 'glossary.json'
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   const handleKeyDown = (e) => {
@@ -80,8 +82,8 @@ export default function GlossaryView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 p-6">
-      <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="flex-1 flex flex-col min-h-0 p-6 overflow-y-auto">
+      <div className="max-w-3xl w-full mx-auto space-y-6 pb-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t('glossary.title')}</h1>
           <p className="text-sm text-zinc-400 mt-1">{t('glossary.description')}</p>
@@ -134,7 +136,7 @@ export default function GlossaryView() {
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 sticky bottom-0 bg-zinc-50 dark:bg-zinc-950 py-3 -mx-6 px-6 border-t border-zinc-200 dark:border-zinc-800">
           <button onClick={handleSave} disabled={saving} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 text-white rounded-lg text-sm font-medium transition-colors">
             {saving ? '...' : t('glossary.save')}
           </button>
